@@ -50,8 +50,18 @@ double heuristic(Cell* a, Cell* b) {
     return euclideanDist;
 }
 
+// Função para verificar se uma célula está em algum caminho existente
+bool isCellInAnyPath(Cell* cell, const std::vector<std::vector<Cell*>>& paths) {
+    for (const auto& path : paths) {
+        if (std::find(path.begin(), path.end(), cell) != path.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Função para encontrar o caminho usando o algoritmo A*
-std::vector<Cell*> findPath(Cell* start, Cell* end, std::vector<std::vector<Cell>>& map) {
+std::vector<Cell*> findPath(Cell* start, Cell* end, std::vector<std::vector<Cell>>& map, const std::vector<std::vector<Cell*>>& paths) {
     std::vector<Cell*> path;
 
     // Verifica se os pontos inicial e final estão dentro dos limites do mapa e se são células válidas
@@ -71,11 +81,10 @@ std::vector<Cell*> findPath(Cell* start, Cell* end, std::vector<std::vector<Cell
         double minCost = NULL;
         int index_temp = 0;
         for (size_t i = 1; i < openList.size(); ++i) {
-            if(minCost == NULL){
+            if (minCost == NULL) {
                 minCost = openList[i]->fCost();
                 index_temp = i;
-            }
-            else if (openList[i]->fCost() < minCost){
+            } else if (openList[i]->fCost() < minCost) {
                 minCost = openList[i]->fCost();
                 index_temp = i;
             }
@@ -115,16 +124,15 @@ std::vector<Cell*> findPath(Cell* start, Cell* end, std::vector<std::vector<Cell
 
                     // Verifica se o vizinho não está na lista fechada ou é uma célula ocupada
                     if (std::find(closedList.begin(), closedList.end(), neighbor) == closedList.end() &&
-                        neighbor->isFree) {
+                        neighbor->isFree && !isCellInAnyPath(neighbor, paths)) { // Verifica se a célula não está em nenhum caminho existente
                         double newCost = currentCell->fCost() + 1;
 
                         // Se o vizinho não está na lista aberta ou tem um custo menor que o custo atual
                         if (newCost < neighbor->fCost() || std::find(openList.begin(), openList.end(), neighbor) == openList.end()) {
-                            neighbor->gCost = currentCell->gCost+1;
+                            neighbor->gCost = currentCell->gCost + 1;
                             neighbor->hCost = heuristic(neighbor, end);
                             neighbor->parent = currentCell;
-                                
-                            //std::cout << "Celula visitada:" << currentCell->x << "," << currentCell->y <<std::endl;
+
                             // Se o vizinho não está na lista aberta, adiciona-o
                             if (std::find(openList.begin(), openList.end(), neighbor) == openList.end()) {
                                 openList.push_back(neighbor);
@@ -139,55 +147,96 @@ std::vector<Cell*> findPath(Cell* start, Cell* end, std::vector<std::vector<Cell
     return path;
 }
 
-void printMap(const std::vector<std::vector<Cell>>& map, const std::vector<Cell*>& path) {
+
+
+// Nova função para calcular caminhos para múltiplos pontos de início e fim
+std::vector<std::vector<Cell*>> findPathsForPairs(const std::vector<std::pair<Cell, Cell>>& startEndPairs, std::vector<std::vector<Cell>>& map) {
+    std::vector<std::vector<Cell*>> allPaths;
+
+    for (const auto& pair : startEndPairs) {
+        Cell* start = &map[pair.first.y][pair.first.x];
+        Cell* end = &map[pair.second.y][pair.second.x];
+
+        // Encontrando o caminho
+        std::vector<Cell*> path = findPath(start, end, map, allPaths);
+
+        // Exibindo o caminho encontrado
+        if (path.empty()) {
+            std::cout << "Caminho nao encontrado para o par (" << start->x << ", " << start->y << ") -> (" << end->x << ", " << end->y << ")." << std::endl;
+        } else {
+            std::cout << "Caminho encontrado para o par (" << start->x << ", " << start->y << ") -> (" << end->x << ", " << end->y << "):" << std::endl;
+            for (Cell* cell : path) {
+                std::cout << "(" << cell->x << ", " << cell->y << ") ";
+            }
+            std::cout << std::endl;
+
+            // Adicionando o caminho à lista de caminhos existentes
+            allPaths.push_back(path);
+        }
+    }
+
+    return allPaths;
+}
+
+
+
+
+// Função para imprimir o mapa com os caminhos destacados
+void printMap(const std::vector<std::vector<Cell>>& map, const std::vector<std::vector<Cell*>>& paths) {
     for (int y = 0; y < MAP_HEIGHT; ++y) {
         for (int x = 0; x < MAP_WIDTH; ++x) {
             bool isPath = false;
 
-            // Verifica se a célula está no caminho
-            for (Cell* cell : path) {
-                if (cell->x == x && cell->y == y) {
+            // Verifica se a célula está em algum caminho
+            for (size_t i = 0; i < paths.size(); ++i) {
+                const auto& path = paths[i];
+                if (std::find_if(path.begin(), path.end(), [x, y](const Cell* cell) {
+                        return cell->x == x && cell->y == y;
+                    }) != path.end()) {
                     isPath = true;
+
+                    // Imprime o caractere de caminho com uma cor diferente para cada caminho
+                    std::cout << "\033[1;" << 31 + i << "m* \033[0m";
                     break;
                 }
             }
 
-            if (isPath) {
-                std::cout << "* "; // Caractere para o caminho percorrido
-            } else if(map[y][x].isVisited > 0){
-                std::cout << int(map[y][x].fCost()) << " "; 
-            } 
-            else if (map[y][x].isFree) {
-                std::cout << ". "; // Caractere para célula livre
-            } else {
-                std::cout << "# "; // Caractere para obstáculo
+            if (!isPath) {
+                /*if (map[y][x].isVisited > 0) {
+                    std::cout << int(map[y][x].fCost()) << " ";
+                } else*/ if (map[y][x].isFree) {
+                    std::cout << ". "; // Caractere para célula livre
+                } else {
+                    std::cout << "# "; // Caractere para obstáculo
+                }
             }
         }
         std::cout << std::endl;
     }
 }
 
+
 int main() {
     initializeMap();
 
-    // Definindo pontos de início e fim
-    Cell startCell(5, 5, true);
-    Cell endCell(30,12, true);
+    // Definindo pontos de início e fim para múltiplos caminhos
+    std::vector<std::pair<Cell, Cell>> startEndPairs = {
+        {{15, 15, true}, {35, 18, true}},
+        {{8, 24, true}, {35, 8, true}},
+        {{5, 5, true}, {30, 12, true}},
+        {{10, 20, true}, {25, 5, true}},
+        
+       
+        {{10, 5, true}, {25, 16, true}},
+        
+};
 
-    // Encontrando o caminho
-    std::vector<Cell*> path = findPath(&startCell, &endCell, map);
+    // Encontrando caminhos para os pares de pontos
+    std::vector<std::vector<Cell*>> allPaths = findPathsForPairs(startEndPairs, map);
 
-    // Exibindo o caminho encontrado
-    if (path.empty()) {
-        std::cout << "Caminho nao encontrado." << std::endl;
-    } else {
-        std::cout << "Caminho encontrado:" << std::endl;
-        for (Cell* cell : path) {
-            std::cout << "(" << cell->x << ", " << cell->y << ") ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << "\nMapa com o caminho destacado:" << std::endl;
-    printMap(map, path);
+    // Exibindo o mapa com os caminhos destacados
+    std::cout << "\nMapa com os caminhos destacados:" << std::endl;
+    printMap(map, allPaths);
+
     return 0;
 }

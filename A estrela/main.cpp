@@ -4,6 +4,26 @@
 #include <queue>
 #include <cmath>
 #include <algorithm>
+#include <random>
+#include <map>
+// Definição das cores ANSI
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+std::map<std::string, std::string> colorMap = {
+    {"red", "\x1b[31m"},
+    {"green", "\x1b[32m"},
+    {"yellow", "\x1b[33m"},
+    {"blue", "\x1b[34m"},
+    {"magenta", "\x1b[35m"},
+    {"cyan", "\x1b[36m"},
+    {"reset", "\x1b[0m"}
+};
 
 // Definição das dimensões do mapa
 const int MAP_WIDTH = 40;
@@ -183,7 +203,9 @@ std::vector<std::vector<Cell*>> findPathsForPairs(const std::vector<std::pair<Ce
 
 
 // Função para imprimir o mapa com os caminhos destacados
-void printMap(const std::vector<std::vector<Cell>>& map, const std::vector<std::vector<Cell*>>& paths) {
+void printMap(const std::vector<std::vector<Cell>>& map, const std::vector<std::vector<Cell*>>& paths, const std::vector<std::string>& pathColors) {
+    int pathNumber = 1; // Contador para atribuir números sequenciais aos caminhos
+
     for (int y = 0; y < MAP_HEIGHT; ++y) {
         for (int x = 0; x < MAP_WIDTH; ++x) {
             bool isPath = false;
@@ -196,8 +218,8 @@ void printMap(const std::vector<std::vector<Cell>>& map, const std::vector<std::
                     }) != path.end()) {
                     isPath = true;
 
-                    // Imprime o caractere de caminho com uma cor diferente para cada caminho
-                    std::cout << "\033[1;" << 31 + i << "m* \033[0m";
+                    // Imprime o caractere do caminho com a cor correspondente
+                    std::cout << colorMap[pathColors[i]] << pathNumber+i << " " << colorMap["reset"];
                     break;
                 }
             }
@@ -216,7 +238,16 @@ void printMap(const std::vector<std::vector<Cell>>& map, const std::vector<std::
     }
 }
 
-std::vector<std::pair<Cell, Cell>> readInputPoints(const std::string& filename) {
+
+// Função para embaralhar os pontos de entrada
+void shuffleInputPoints(std::vector<std::pair<Cell, Cell>>& startEndPairs, std::vector<std::string>& pathColors) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(startEndPairs.begin(), startEndPairs.end(), g);
+    std::shuffle(pathColors.begin(), pathColors.end(), g);
+}
+
+std::vector<std::pair<Cell, Cell>> readInputPoints(const std::string& filename, std::vector<std::string>& pathColors) {
     std::vector<std::pair<Cell, Cell>> startEndPairs;
 
     std::ifstream inputFile(filename);
@@ -226,21 +257,30 @@ std::vector<std::pair<Cell, Cell>> readInputPoints(const std::string& filename) 
     }
 
     int startX, startY, endX, endY;
-    while (inputFile >> startX >> startY >> endX >> endY) {
+    std::string color;
+    while (inputFile >> startX >> startY >> endX >> endY >> color) {
         Cell startCell(startX, startY, true);
         Cell endCell(endX, endY, true);
         startEndPairs.push_back(std::make_pair(startCell, endCell));
+        pathColors.push_back(color);
     }
 
     inputFile.close();
+
+    // Embaralhar os pontos de entrada
+    shuffleInputPoints(startEndPairs, pathColors);
+
     return startEndPairs;
 }
 
 
+
 int main() {
     initializeMap();
+    std::vector<std::string> pathColors;
 
-    std::vector<std::pair<Cell, Cell>> startEndPairs = readInputPoints("input_points.txt");
+
+    std::vector<std::pair<Cell, Cell>> startEndPairs = readInputPoints("input_points.txt", pathColors);
 
     // Definindo pontos de início e fim para múltiplos caminhos
     /*std::vector<std::pair<Cell, Cell>> startEndPairs = {
@@ -259,7 +299,7 @@ int main() {
 
     // Exibindo o mapa com os caminhos destacados
     std::cout << "\nMapa com os caminhos destacados:" << std::endl;
-    printMap(map, allPaths);
+    printMap(map, allPaths, pathColors);
 
     return 0;
 }

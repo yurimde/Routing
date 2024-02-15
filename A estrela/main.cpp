@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <queue>
 #include <cmath>
@@ -215,12 +216,34 @@ void printMap(const std::vector<std::vector<Cell>>& map, const std::vector<std::
     }
 }
 
+std::vector<std::pair<Cell, Cell>> readInputPoints(const std::string& filename) {
+    std::vector<std::pair<Cell, Cell>> startEndPairs;
+
+    std::ifstream inputFile(filename);
+    if (!inputFile.is_open()) {
+        std::cerr << "Erro ao abrir o arquivo de entrada." << std::endl;
+        return startEndPairs;
+    }
+
+    int startX, startY, endX, endY;
+    while (inputFile >> startX >> startY >> endX >> endY) {
+        Cell startCell(startX, startY, true);
+        Cell endCell(endX, endY, true);
+        startEndPairs.push_back(std::make_pair(startCell, endCell));
+    }
+
+    inputFile.close();
+    return startEndPairs;
+}
+
 
 int main() {
     initializeMap();
 
+    std::vector<std::pair<Cell, Cell>> startEndPairs = readInputPoints("input_points.txt");
+
     // Definindo pontos de início e fim para múltiplos caminhos
-    std::vector<std::pair<Cell, Cell>> startEndPairs = {
+    /*std::vector<std::pair<Cell, Cell>> startEndPairs = {
         {{15, 15, true}, {35, 18, true}},
         {{8, 24, true}, {35, 8, true}},
         {{5, 5, true}, {30, 12, true}},
@@ -229,7 +252,7 @@ int main() {
        
         {{10, 5, true}, {25, 16, true}},
         
-};
+};*/
 
     // Encontrando caminhos para os pares de pontos
     std::vector<std::vector<Cell*>> allPaths = findPathsForPairs(startEndPairs, map);
